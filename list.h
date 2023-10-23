@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <utility>
+
+namespace ListSolution {
 
 template <typename T>
 class List {
@@ -12,33 +15,28 @@ public:
         friend class Iterator;
 
     public:
-        ListNode() {
-            value_ptr_ = nullptr;
-            next_ = this;
-            prev_ = this;
+        ListNode() : value_ptr_(nullptr), next_(this), prev_(this) {
         }
 
-        explicit ListNode(T* value_ptr) : value_ptr_(value_ptr), next_(nullptr), prev_(nullptr) {
+        explicit ListNode(const T& value) : value_ptr_(std::make_unique<T>(value)), next_(nullptr), prev_(nullptr) {
+        }
+
+        explicit ListNode(T&& value) : value_ptr_(std::make_unique<T>(std::move(value))), next_(nullptr), prev_(nullptr) {
         }
 
         T& GetValue() {
             return *value_ptr_;
         }
 
-        ~ListNode() {
-            delete value_ptr_;
-        }
-
     private:
-        T* value_ptr_;
+        std::unique_ptr<T> value_ptr_;
         ListNode* next_;
         ListNode* prev_;
     };
 
     class Iterator {
     public:
-        explicit Iterator(ListNode* ptr) : ptr_(ptr) {
-        }
+        explicit Iterator(ListNode* ptr) : ptr_(ptr) {}
 
         Iterator& operator++() {
             ptr_ = ptr_->next_;
@@ -62,59 +60,27 @@ public:
             return tmp;
         }
 
-        T& operator*() const {
-            return ptr_->GetValue();
-        }
+        T& operator*() const { return ptr_->GetValue(); }
 
-        T* operator->() const {
-            return ptr_->value_ptr_;
-        }
+        T* operator->() const { return ptr_->value_ptr_; }
 
         bool operator==(const Iterator& rhs) const {
             return ptr_->value_ptr_ == rhs.ptr_->value_ptr_;
         }
 
-        bool operator!=(const Iterator& rhs) const {
-            return !(*this == rhs);
-        }
+        bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
 
     private:
         ListNode* ptr_;
     };
 
-private:
-    ListNode* linkage_;
-
-    void UnLink(ListNode* node) {
-        if (node == linkage_) {
-            return;
-        }
-        ListNode* prev = node->prev_;
-        ListNode* next = node->next_;
-        prev->next_ = next;
-        next->prev_ = prev;
-        node->prev_ = nullptr;
-        node->next_ = nullptr;
-        delete node;
-    }
-
-    void LinkAfter(ListNode* target, ListNode* after) {
-        after->next_->prev_ = target;
-        target->next_ = after->next_;
-        after->next_ = target;
-        target->prev_ = after;
-    }
-
 public:
-    List() : linkage_(nullptr) {
-        linkage_ = new ListNode();
+    List() : linkage_(new ListNode()), size_(0) {
     }
 
     List(const List& other) : List() {
         for (const T& value : other) {
-            T* new_value = new T(value);
-            ListNode* new_node = new ListNode(new_value);
-            LinkAfter(new_node, linkage_->prev_);
+            PushBack(value);
         }
     }
 
@@ -131,12 +97,13 @@ public:
 
     List& operator=(const List& rhv) {
         List tmp(rhv);
-        Swap(*this, tmp);
+        SwapWith(tmp);
         return *this;
     }
 
     List& operator=(List&& rhv) {
-        Swap(*this, rhv);
+        List tmp(std::move(rhv));
+        SwapWith(tmp);
         return *this;
     }
 
@@ -145,36 +112,26 @@ public:
     }
 
     std::size_t Size() const {
-        std::size_t size = 0;
-        ListNode* current = linkage_->next_;
-        while (current != linkage_) {
-            ++size;
-            current = current->next_;
-        }
-        return size;
+        return size_;
     }
 
     void PushBack(const T& elem) {
-        T* new_elem = new T(elem);
-        ListNode* new_node = new ListNode(new_elem);
+        ListNode* new_node = new ListNode(elem);
         LinkAfter(new_node, linkage_->prev_);
     }
 
     void PushBack(T&& elem) {
-        T* new_elem = new T(std::move(elem));
-        ListNode* new_node = new ListNode(new_elem);
+        ListNode* new_node = new ListNode(std::move(elem));
         LinkAfter(new_node, linkage_->prev_);
     }
 
     void PushFront(const T& elem) {
-        T* new_elem = new T(elem);
-        ListNode* new_node = new ListNode(new_elem);
+        ListNode* new_node = new ListNode(elem);
         LinkAfter(new_node, linkage_);
     }
 
     void PushFront(T&& elem) {
-        T* new_elem = new T(std::move(elem));
-        ListNode* new_node = new ListNode(new_elem);
+        ListNode* new_node = new ListNode(std::move(elem));
         LinkAfter(new_node, linkage_);
     }
 
@@ -202,8 +159,8 @@ public:
         UnLink(linkage_->next_);
     }
 
-    void Swap(List& lhv, List& rhv) {
-        std::swap(lhv.linkage_, rhv.linkage_);
+    void SwapWith(List& other){
+        std::swap(linkage_, other.linkage_);
     }
 
     Iterator Begin() {
@@ -237,6 +194,31 @@ public:
     Iterator end() const {  // NOLINT
         return End();
     }
+
+private:
+    ListNode* linkage_;
+    std::size_t size_;
+
+    void UnLink(ListNode* node) {
+        if (node == linkage_) {
+            return;
+        }
+        ListNode* prev = node->prev_;
+        ListNode* next = node->next_;
+        prev->next_ = next;
+        next->prev_ = prev;
+        node->prev_ = nullptr;
+        node->next_ = nullptr;
+        delete node;
+    }
+
+    void LinkAfter(ListNode* target, ListNode* after) {
+        after->next_->prev_ = target;
+        target->next_ = after->next_;
+        after->next_ = target;
+        target->prev_ = after;
+        ++size_;
+    }
 };
 
 template <typename T>
@@ -248,3 +230,4 @@ template <typename T>
 typename List<T>::Iterator end(List<T>& list) {  // NOLINT
     return list.End();
 }
+}  // namespace ListSolution
